@@ -3,9 +3,15 @@
 set -e
 
 if [[ "$1" == "-h" ]]; then
-    echo "build_all.sh [JetPack_version] [JetPack_Linux_source]"
+    echo "build_all.sh [--no-dev-dbg] [JetPack_version] [JetPack_Linux_source]"
     echo "build_all.sh -h"
     exit 1
+fi
+
+DEVDBG=1
+if [[ "$1" == "--no-dev-dbg" ]]; then
+    DEVDBG=0
+    shift
 fi
 
 export DEVDIR=$(cd `dirname $0` && pwd)
@@ -42,7 +48,27 @@ if [[ "$JETPACK_VERSION" == "6.0" ]]; then
     cd $SRCS
     export KERNEL_HEADERS=$SRCS/kernel/kernel-jammy-src
     ln -sf $TEGRA_KERNEL_OUT $SRCS/out
-    make ARCH=arm64 -C kernel
+    if [[ "$DEVDBG" == "1" ]]; then
+        cd $KERNEL_HEADERS
+        # Generate .config file from default defconfig
+        make ARCH=arm64 defconfig
+        # Update the CONFIG_DYNAMIC_DEBUG and CONFIG_DEBUG_CORE flags in .config file
+        scripts/config --enable DYNAMIC_DEBUG
+        scripts/config --enable DYNAMIC_DEBUG_CORE
+        # Convert the .config file into defconfig 
+        make ARCH=arm64 savedefconfig
+        # Save the new generated file as custom_defconfig
+        cp defconfig ./arch/arm64/configs/custom_defconfig
+        # Remove unwanted
+        rm defconfig .config
+        make ARCH=arm64 mrproper
+        cd $SRCS
+        # Building the Image with custom_defconfig
+        make ARCH=arm64 KERNEL_DEF_CONFIG=custom_defconfig -C kernel
+    else
+        # Building the Image with default defconfig
+        make ARCH=arm64 -C kernel
+    fi
     make ARCH=arm64 modules
     make ARCH=arm64 dtbs
     mkdir -p $TEGRA_KERNEL_OUT/rootfs/boot/dtb
@@ -69,6 +95,9 @@ else
 #jp4/5
     cd $SRCS/$KERNEL_DIR
     make ARCH=arm64 O=$TEGRA_KERNEL_OUT tegra_defconfig
+    if [[ "$DEVDBG" == "1" ]]; then
+        scripts/config --file $TEGRA_KERNEL_OUT/.config --enable DYNAMIC_DEBUG
+    fi
     make ARCH=arm64 O=$TEGRA_KERNEL_OUT -j${NPROC}
     make ARCH=arm64 O=$TEGRA_KERNEL_OUT modules_install INSTALL_MOD_PATH=$KERNEL_MODULES_OUT
 fi
