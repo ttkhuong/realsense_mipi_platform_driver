@@ -47,9 +47,9 @@ cd realsense_mipi_platform_driver
 ./apply_patches.sh apply 6.0
 ./build_all.sh 6.0
 ```
-Note: dev_dbg() log support will be enabled by default. If not needed, run the `./build_all.sh` script with `--no-dev-dbg` option like below.
+Note: dev_dbg() log support will not be enabled by default. If needed, run the `./build_all.sh` script with `--dev-dbg` option like below.
 ```
-./build_all.sh --no-dev-dbg 6.0
+./build_all.sh --dev-dbg 6.0
 ```
 
 
@@ -84,13 +84,13 @@ cd ../..
 # build kernel, dtb and D457 driver
 ./build_all.sh 6.0 ./Linux_for_Tegra/source
 ```
-Note: dev_dbg() log support will be enabled by default. If not needed, run the `./build_all.sh` script with `--no-dev-dbg` option like below.
+Note: dev_dbg() log support will not be enabled by default. If needed, run the `./build_all.sh` script with `--dev-dbg` option like below.
 ```
-./build_all.sh --no-dev-dbg 6.0 ./Linux_for_Tegra/source
+./build_all.sh --dev-dbg 6.0 ./Linux_for_Tegra/source
 ```
 
 ## Archive JetPack 6.0 build results (optional) on build host
-- kernel image (not modified if `--no-dev-dbg` option is used while building): `images/6.0/rootfs/boot/Image`
+- kernel image (modified if `--dev-dbg` option is used while building): `images/6.0/rootfs/boot/Image`
 - dtb: `images/6.0/rootfs/boot/dtb/tegra234-p3737-0000+p3701-0000-nv.dtb`
 - dtb overlay: `images/6.0/rootfs/boot/tegra234-camera-d4xx-overlay.dtbo`
 - dtb dual camera overlay: `images/6.0/rootfs/boot/tegra234-camera-d4xx-overlay-dual.dtbo`
@@ -122,7 +122,7 @@ Following steps required:
 3.	Copy `tegra234-camera-d4xx-overlay.dtbo` from host to `/boot/tegra234-camera-d4xx-overlay.dtbo` on Orin target
 4.	For dual camera, copy `tegra234-camera-d4xx-overlay-dual.dtbo` from host to `/boot/tegra234-camera-d4xx-overlay-dual.dtbo` on Orin target
 5.  Copy `tegra234-p3737-0000+p3701-0000-nv.dtb` from host to `/boot/` on Orin
-6.  Copy `Image` from host to `/boot/` on Orin
+6.  Copy `Image` from host to `/boot/` on Orin (only if `--dev-dbg` option is enabled, else not needed as the kernel will be unmodified)
 7.	Run  $ `sudo /opt/nvidia/jetson-io/jetson-io.py`
     1.	Configure Jetson AGX CSI Connector
     2.	Configure for compatible hardware
@@ -170,6 +170,7 @@ sudo cp -r ~/extra /lib/modules/$(uname -r)/
 sudo cp -r ~/updates /lib/modules/$(uname -r)/
 sudo cp ~/boot/tegra234-camera-d4xx-overlay.dtbo /boot/
 sudo cp ./boot/dtb/tegra234-p3737-0000+p3701-0000-nv.dtb /boot/tegra234-p3737-0000+p3701-0000-nv.dtb
+# If "--dev-dbg" option is enabled, kernel will be modified. So, copy the 'Image' as well. If not enabled, no need to copy.
 sudo cp ./boot/Image /boot/Image
 # Enable d4xx overlay for single camera:
 sudo /opt/nvidia/jetson-io/config-by-hardware.py -n 2="Jetson RealSense Camera D457"
