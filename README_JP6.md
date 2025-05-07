@@ -90,7 +90,7 @@ Note: dev_dbg() log support will not be enabled by default. If needed, run the `
 ```
 
 ## Archive JetPack 6.0 build results (optional) on build host
-- kernel image (modified if `--dev-dbg` option is used while building): `images/6.0/rootfs/boot/Image`
+- kernel image : `images/6.0/rootfs/boot/Image`
 - dtb: `images/6.0/rootfs/boot/dtb/tegra234-p3737-0000+p3701-0000-nv.dtb`
 - dtb overlay: `images/6.0/rootfs/boot/tegra234-camera-d4xx-overlay.dtbo`
 - dtb dual camera overlay: `images/6.0/rootfs/boot/tegra234-camera-d4xx-overlay-dual.dtbo`
@@ -122,17 +122,15 @@ Following steps required:
 3.	Copy `tegra234-camera-d4xx-overlay.dtbo` from host to `/boot/tegra234-camera-d4xx-overlay.dtbo` on Orin target
 4.	For dual camera, copy `tegra234-camera-d4xx-overlay-dual.dtbo` from host to `/boot/tegra234-camera-d4xx-overlay-dual.dtbo` on Orin target
 5.  Copy `tegra234-p3737-0000+p3701-0000-nv.dtb` from host to `/boot/` on Orin
-6.  Only if `--dev-dbg` option is enabled (else not needed as the kernel will be unmodified):
-    1.  Copy `Image` from host to `/boot/` on Orin
-    2.  Copy entire directory `images/6.0/rootfs/lib/modules/5.15.136-tegra/kernel` from host to `/lib/modules/5.15.136-tegra/` on Orin target
-7.	Run  $ `sudo /opt/nvidia/jetson-io/jetson-io.py`
+6.  Copy `Image` from host to `/boot/` on Orin
+7.  Copy entire directory `images/6.0/rootfs/lib/modules/5.15.136-tegra/kernel` from host to `/lib/modules/5.15.136-tegra/` on Orin target
+8.	Run  $ `sudo /opt/nvidia/jetson-io/jetson-io.py`
     1.	Configure Jetson AGX CSI Connector
     2.	Configure for compatible hardware
     3.	Choose appropriate configuration:
         1. Jetson RealSense Camera D457
         2. Jetson RealSense Camera D457 dual
-    4.  Enable depmod scan for "extra" modules $ `sudo sed -i 's/search updates/search extra updates/g' /etc/depmod.d/ubuntu.conf`
-        1. If `--dev-dbg` option is enabled, enable depmod scan for "kernel" modules as well. $ `sudo sed -i 's/search extra updates/search extra updates kernel/g' /etc/depmod.d/ubuntu.conf`
+    4.  Enable depmod scan for "extra" & "kernel" modules $ `sudo sed -i 's/search updates/search extra updates kernel/g' /etc/depmod.d/ubuntu.conf`
         ```
         $ cat /etc/depmod.d/ubuntu.conf
         search extra updates kernel ubuntu built-in
@@ -140,7 +138,7 @@ Following steps required:
     5.	$ `sudo depmod`
     6.	$ `echo "d4xx" | sudo tee /etc/modules-load.d/d4xx.conf`
     
-8.  Verify bootloader configuration
+9.  Verify bootloader configuration
 
     ```
     cat /boot/extlinux/extlinux.conf
@@ -153,7 +151,7 @@ Following steps required:
         OVERLAYS /boot/tegra234-camera-d4xx-overlay.dtbo
     ----<CUT>----
     ```
-9.	Reboot
+10.	Reboot
 
 ## Deploy build results on Jetson target
 On build host, copy build results to the right places.
@@ -177,7 +175,6 @@ sudo cp -r ~/extra /lib/modules/$(uname -r)/
 sudo cp -r ~/updates /lib/modules/$(uname -r)/
 sudo cp ~/boot/tegra234-camera-d4xx-overlay.dtbo /boot/
 sudo cp ./boot/dtb/tegra234-p3737-0000+p3701-0000-nv.dtb /boot/tegra234-p3737-0000+p3701-0000-nv.dtb
-# If "--dev-dbg" option is enabled, kernel will be modified. So, copy the 'Image' as well. If not enabled, no need to copy.
 sudo cp ./boot/Image /boot/Image
 # Enable d4xx overlay for single camera:
 sudo /opt/nvidia/jetson-io/config-by-hardware.py -n 2="Jetson RealSense Camera D457"
