@@ -109,6 +109,10 @@ tar -czf ./images/6.0/kernel-hid-modules.tar.gz -C "./images/6.0/rootfs/" ./lib/
 ```
 echo "Backup boot configuration"
 sudo cp /boot/tegra234-p3737-0000+p3701-0000-nv.dtb /boot/tegra234-p3737-0000+p3701-0000-nv-bkp.dtb
+
+# Note: If using a production board and not a dev kit copy the relevant dtb file below
+sudo cp /boot/tegra234-p3737-0000+p3701-0005-nv.dtb /boot/tegra234-p3737-0000+p3701-0005-nv-bkp.dtb
+
 echo "backup nvidia-oot modules"
 sudo tar -czf /lib/modules/$(uname -r)/updates.tar.gz -C /lib/modules/$(uname -r)/ updates
 ```
@@ -164,6 +168,8 @@ scp -r images/6.0/rootfs/boot nvidia@10.0.0.116:~/
 scp -r images/6.0/rootfs/lib/modules/5.15.136-tegra/updates nvidia@10.0.0.116:~/
 # RealSense metadata patched kernel modules and IMU HID support
 scp -r images/6.0/rootfs/lib/modules/5.15.136-tegra/extra nvidia@10.0.0.116:~/
+# Updated kernel modules to match the new compiled kernel image
+scp -r images/6.0/rootfs/lib/modules/5.15.136-tegra/updates nvidia@10.0.0.116:~/
 ```
 
 On Jetson target, assuming backup step was followed:
@@ -173,14 +179,21 @@ On Jetson target, assuming backup step was followed:
 sudo cp -r ~/extra /lib/modules/$(uname -r)/
 # enable RealSense MIPI support for D457 GMSL
 sudo cp -r ~/updates /lib/modules/$(uname -r)/
+sudo cp -r ~/kernel/ /lib/modules/5.15.136-tegra/
 sudo cp ~/boot/tegra234-camera-d4xx-overlay.dtbo /boot/
-sudo cp ./boot/dtb/tegra234-p3737-0000+p3701-0000-nv.dtb /boot/tegra234-p3737-0000+p3701-0000-nv.dtb
+
+# (replace with tegra234-p3737-0000+p3701-0000-nv.dtb on production Orin board)
+sudo cp ~/boot/dtb/tegra234-p3737-0000+p3701-0000-nv.dtb /boot/tegra234-p3737-0000+p3701-0000-nv.dtb
+
 sudo cp ./boot/Image /boot/Image
 # Enable d4xx overlay for single camera:
 sudo /opt/nvidia/jetson-io/config-by-hardware.py -n 2="Jetson RealSense Camera D457"
 
 # For dual camera setup:
 # sudo /opt/nvidia/jetson-io/config-by-hardware.py -n 3="Jetson RealSense Camera D457 dual"
+
+# enable extra & kernel modules
+sudo sed -i 's/search updates/search extra updates kernel/g' /etc/depmod.d/ubuntu.conf
 
 # Enable d4xx autoload:
 echo "d4xx" | sudo tee /etc/modules-load.d/d4xx.conf
@@ -276,4 +289,17 @@ nvidia@ubuntu:~$ ls /boot/dtb/
 kernel_tegra234-p3737-0000+p3701-0000-nv.dtb
 ```
 
+- kernel does not recognize the I2C device
+```
+# Make sure which Jetson Carrier board is used:
+#   p3701-0000 → Dev kit carrier board
+#   p3701-0005 → Production carrier board or custom carrier
+# if you have the *0005* board, replace the relevant dtb file in in the instructions above
+
+Example: 
+sudo cat /proc/device-tree/compatible
+
+Output:
+nvidia,p3701-0000
+```
 ---
