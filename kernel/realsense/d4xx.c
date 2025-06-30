@@ -42,7 +42,8 @@
 
 #ifdef CONFIG_VIDEO_D4XX_SERDES
 #include <media/max9295.h>
-#include <media/max9296.h>
+//#include <media/max96712.h>
+#include <max96712.h>
 #else
 #include <media/gmsl-link.h>
 #define GMSL_CSI_DT_YUV422_8 0x1E
@@ -150,7 +151,7 @@
 #define MAX9295_I2C_4	0x0044
 #define MAX9295_I2C_5	0x0045
 
-#define MAX9296_CTRL0	0x0010
+#define MAX96712_CTRL0	0x0010
 #define RESET_LINK	(0x1 << 6)
 #define RESET_ONESHOT	(0x1 << 5)
 #define AUTO_LINK	(0x1 << 4)
@@ -158,7 +159,7 @@
 #define LINK_A		(0x1)
 #define LINK_B		(0x2)
 #define SPLITTER	(0x3)
-#define MAX9296_NUM	(4)
+#define MAX96712_NUM	(4)
 
 #define MAX9295_I2C_ADDR_DEF	0x40
 #define D457_I2C_ADDR	0x10
@@ -203,8 +204,8 @@ enum ds5_mux_pad {
 	if (ds5_raw_write(state, addr, buf, size)) \
 		return -EINVAL; }
 #ifdef CONFIG_VIDEO_INTEL_IPU6
-#define max9296_write_8_with_check(state, addr, buf) {\
-	if (max9296_write_8(state, addr, buf)) \
+#define max96712_write_8_with_check(state, addr, buf) {\
+	if (max96712_write_8(state, addr, buf)) \
 		return -EINVAL; \
 	}
 #define max9295_write_8_with_check(state, addr, buf) {\
@@ -1437,8 +1438,10 @@ static int ds5_setup_pipeline(struct ds5 *state, u8 data_type1, u8 data_type2,
 			 pipe_id, data_type1, data_type2, vc_id);
 	ret |= max9295_set_pipe(state->ser_dev, pipe_id,
 				data_type1, data_type2, vc_id);
-	ret |= max9296_set_pipe(state->dser_dev, pipe_id,
-				data_type1, data_type2, vc_id);
+	// ret |= max96712_set_pipe(state->dser_dev, pipe_id,
+	// 			data_type1, data_type2, vc_id);
+	ret |= max96712_set_pipe(state->dser_dev, pipe_id,
+				data_type1, data_type2, vc_id);	
 	if (ret)
 		dev_warn(&state->client->dev,
 			 "failed to set pipe %d, data_type1: 0x%x, \
@@ -1515,7 +1518,7 @@ static int ds5_configure(struct ds5 *state)
 				 vc_id);
 	// reset data path when switching to Y12I
 	if (state->is_y8 && data_type1 == GMSL_CSI_DT_RGB_888)
-		max9296_reset_oneshot(state->dser_dev);
+		max96712_reset_oneshot(state->dser_dev);
 	if (ret < 0)
 		return ret;
 #endif
@@ -3068,13 +3071,13 @@ static int ds5_board_setup(struct ds5 *state)
 		.is_prim_ser = 1, // todo: configurable
 		.def_addr = 0x40, // todo: configurable
 	};
-	static struct max9296_pdata max9296_pdata = {
+	static struct max96712_pdata max96712_pdata = {
 		.max_src = 2,
 		.csi_mode = GMSL_CSI_2X4_MODE,
 	};
 	static struct i2c_board_info i2c_info_des = {
-		I2C_BOARD_INFO("max9296", 0x48),
-		.platform_data = &max9296_pdata,
+		I2C_BOARD_INFO("max96712", 0x48),
+		.platform_data = &max96712_pdata,
 	};
 	static struct i2c_board_info i2c_info_ser = {
 		I2C_BOARD_INFO("max9295", 0x42),
@@ -3086,14 +3089,14 @@ static int ds5_board_setup(struct ds5 *state)
 
 	i2c_info_des.addr = pdata->subdev_info[0].board_info.addr; //0x48, 0x4a, 0x68, 0x6a
 
-	/* look for already registered max9296, use same context if found */
+	/* look for already registered max96712, use same context if found */
 	for (i = 0; i < MAX_DEV_NUM; i++) {
 		if (serdes_inited[i] && serdes_inited[i]->dser_i2c) {
-			dev_info(dev, "MAX9296 found device on %d@0x%x\n",
+			dev_info(dev, "MAX96712 found device on %d@0x%x\n",
 				serdes_inited[i]->dser_i2c->adapter->nr, serdes_inited[i]->dser_i2c->addr);
 			if (bus == serdes_inited[i]->dser_i2c->adapter->nr
 				&& serdes_inited[i]->dser_i2c->addr == i2c_info_des.addr) {
-				dev_info(dev, "MAX9296 AGGREGATION found device on 0x%x\n", i2c_info_des.addr);
+				dev_info(dev, "MAX96712 AGGREGATION found device on 0x%x\n", i2c_info_des.addr);
 				state->dser_i2c = serdes_inited[i]->dser_i2c;
 				state->aggregated = 1;
 			}
@@ -3189,7 +3192,7 @@ error:
 }
 
 #endif
-static const struct regmap_config ds5_regmap_max9296 = {
+static const struct regmap_config ds5_regmap_max96712 = {
 	.reg_bits = 16,
 	.val_bits = 8,
 	.reg_format_endian = REGMAP_ENDIAN_BIG,
@@ -3217,13 +3220,13 @@ static int ds5_gmsl_serdes_setup(struct ds5 *state)
 
 	mutex_lock(&serdes_lock__);
 
-	max9296_power_off(state->dser_dev);
+	max96712_power_off(state->dser_dev);
 	/* For now no separate power on required for serializer device */
-	max9296_power_on(state->dser_dev);
+	max96712_power_on(state->dser_dev);
 
 	dev_dbg(dev, "Setup SERDES addressing and control pipeline\n");
 	/* setup serdes addressing and control pipeline */
-	err = max9296_setup_link(state->dser_dev, &state->client->dev);
+	err = max96712_setup_link(state->dser_dev, &state->client->dev);
 	if (err) {
 		dev_err(dev, "gmsl deserializer link config failed\n");
 		goto error;
@@ -3235,7 +3238,7 @@ static int ds5_gmsl_serdes_setup(struct ds5 *state)
 	if (err)
 		dev_err(dev, "gmsl serializer setup failed\n");
 
-	des_err = max9296_setup_control(state->dser_dev, &state->client->dev);
+	des_err = max96712_setup_control(state->dser_dev, &state->client->dev);
 	if (des_err) {
 		dev_err(dev, "gmsl deserializer setup failed\n");
 		/* overwrite err only if deser setup also failed */
@@ -3270,7 +3273,7 @@ static unsigned short des_addr[4] = {0x48, 0x4a, 0x68, 0x6c};
 static unsigned short des_addr[4] = {0x48, 0x4a, 0x48, 0x4a};
 #endif
 module_param_array(des_addr, ushort, NULL, 0444);
-MODULE_PARM_DESC(des_addr, "max9296 deserializer i2c address\n"
+MODULE_PARM_DESC(des_addr, "max96712 deserializer i2c address\n"
 		"\t\tdes_addr=0x48,0x4a,0x48,0x4a");
 
 
@@ -3282,7 +3285,7 @@ static int ds5_i2c_addr_setting(struct i2c_client *c, struct ds5 *state)
 	for (i = 0; i < 4; i++) {
 		if (c_bus == serdes_bus[i]) {
 			c->addr = des_addr[i];
-			dev_info(&c->dev, "Set max9296@%d-0x%x Link reset\n",
+			dev_info(&c->dev, "Set max96712@%d-0x%x Link reset\n",
 					c_bus, c->addr);
 			ds5_write_8(state, 0x1000, 0x40); // reset link
 		}
@@ -3339,7 +3342,7 @@ static int ds5_serdes_setup(struct ds5 *state)
 	}
 
 	/* Register sensor to deserializer dev */
-	ret = max9296_sdev_register(state->dser_dev, &state->g_ctx);
+	ret = max96712_sdev_register(state->dser_dev, &state->g_ctx);
 	if (ret) {
 		dev_err(&c->dev, "gmsl deserializer register failed\n");
 		return ret;
@@ -3358,9 +3361,9 @@ static int ds5_serdes_setup(struct ds5 *state)
 		return ret;
 	}
 
-	ret = max9296_init_settings(state->dser_dev);
+	ret = max96712_init_settings(state->dser_dev);
 	if (ret) {
-		dev_warn(&c->dev, "%s, failed to init max9296 settings\n",
+		dev_warn(&c->dev, "%s, failed to init max96712 settings\n",
 			__func__);
 		return ret;
 	}
@@ -4099,7 +4102,7 @@ int d4xx_reset_oneshot(struct ds5 *state)
 		state->client->addr = n_addr;
 		dev_warn(&state->client->dev, "One-shot reset 0x%x enable auto-link\n", n_addr);
 		/* One-shot reset  enable auto-link */
-		ret = max9296_write_8(state, MAX9296_CTRL0, RESET_ONESHOT | AUTO_LINK | LINK_A);
+		ret = max96712_write_8(state, MAX96712_CTRL0, RESET_ONESHOT | AUTO_LINK | LINK_A);
 		state->client->addr = s_addr;
 		/* delay to settle link */
 		msleep(100);
@@ -4183,11 +4186,11 @@ static int ds5_mux_s_stream(struct v4l2_subdev *sd, int on)
 		state->g_ctx.dst_vc = vc_id;
 #endif
 		sensor->pipe_id =
-			max9296_get_available_pipe_id(state->dser_dev,
+			max96712_get_available_pipe_id(state->dser_dev,
 					(int)state->g_ctx.dst_vc);
 		if (sensor->pipe_id < 0) {
 			dev_err(&state->client->dev,
-				"No free pipe in max9296\n");
+				"No free pipe in max96712\n");
 			ret = -(ENOSR);
 			goto restore_s_state;
 		}
@@ -4236,7 +4239,7 @@ static int ds5_mux_s_stream(struct v4l2_subdev *sd, int on)
 		if (state->is_y8 &&
 			state->ir.sensor.config.format->data_type ==
 			GMSL_CSI_DT_RGB_888) {
-			max9296_reset_oneshot(state->dser_dev);
+			max96712_reset_oneshot(state->dser_dev);
 		}
 #ifndef CONFIG_TEGRA_CAMERA_PLATFORM
 		// reset for IPU6
@@ -4248,11 +4251,11 @@ static int ds5_mux_s_stream(struct v4l2_subdev *sd, int on)
 			}
 		}
 		if (!streaming) {
-			dev_warn(&state->client->dev, "max9296_reset_oneshot\n");
-				max9296_reset_oneshot(state->dser_dev);
+			dev_warn(&state->client->dev, "max96712_reset_oneshot\n");
+				max96712_reset_oneshot(state->dser_dev);
 		}
 #endif
-		if (max9296_release_pipe(state->dser_dev, sensor->pipe_id) < 0)
+		if (max96712_release_pipe(state->dser_dev, sensor->pipe_id) < 0)
 			dev_warn(&state->client->dev, "release pipe failed\n");
 		sensor->pipe_id = -1;
 #else
@@ -4276,7 +4279,7 @@ static int ds5_mux_s_stream(struct v4l2_subdev *sd, int on)
 restore_s_state:
 #ifdef CONFIG_VIDEO_D4XX_SERDES
 	if (on && sensor->pipe_id >= 0) {
-		if (max9296_release_pipe(state->dser_dev, sensor->pipe_id) < 0)
+		if (max96712_release_pipe(state->dser_dev, sensor->pipe_id) < 0)
 			dev_warn(&state->client->dev, "release pipe failed\n");
 		sensor->pipe_id = -1;
 	}
@@ -5583,22 +5586,22 @@ static int ds5_remove(struct i2c_client *c)
 			if (ret)
 				dev_warn(&c->dev,
 				  "failed in 9295 reset control\n");
-			ret = max9296_reset_control(state->dser_dev,
+			ret = max96712_reset_control(state->dser_dev,
 				state->g_ctx.s_dev);
 			if (ret)
 				dev_warn(&c->dev,
-				  "failed in 9296 reset control\n");
+				  "failed in 96712 reset control\n");
 
 			ret = max9295_sdev_unpair(state->ser_dev,
 				state->g_ctx.s_dev);
 			if (ret)
 				dev_warn(&c->dev, "failed to unpair sdev\n");
-			ret = max9296_sdev_unregister(state->dser_dev,
+			ret = max96712_sdev_unregister(state->dser_dev,
 				state->g_ctx.s_dev);
 			if (ret)
 				dev_warn(&c->dev,
 				  "failed to sdev unregister sdev\n");
-			max9296_power_off(state->dser_dev);
+			max96712_power_off(state->dser_dev);
 
 			mutex_unlock(&serdes_lock__);
 			break;

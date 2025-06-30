@@ -197,10 +197,10 @@
 							#address-cells = <1>;
 							#size-cells = <0>;
 
-							dser: max9296@48 {
+							dser: max96712@48 {
 								status = "okay";
 								reg = <0x48>;
-								compatible = "maxim,max9296";
+								compatible = "maxim,max96712";
 								csi-mode = "2x4";
 								max-src = <1>;
 								reset-gpios = <&gpio CAM0_RST_L GPIO_ACTIVE_HIGH>;
