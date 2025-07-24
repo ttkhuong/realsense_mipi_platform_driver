@@ -1782,6 +1782,40 @@ enum DS5_HWMC_ERR {
 	DS5_HWMC_ERR_LAST,
 };
 
+#define DS5_HWMC_HIST       0x4910
+#define HWM_HIST_SIZE       30
+
+typedef struct {
+    uint32_t i2c_cmd;
+    uint32_t last_opcode;
+    uint32_t last_param1;
+    uint32_t last_param2;
+    uint32_t write;
+} HWM_i2c_cmd_t;
+
+static int ds5_print_hwmc_hist_buff(struct ds5 *state)
+{
+    HWM_i2c_cmd_t hist_buff[HWM_HIST_SIZE];
+    int ret = ds5_raw_read(state, DS5_HWMC_HIST, hist_buff, sizeof(hist_buff));
+
+    if (ret == 0)
+    {
+        int i;
+        for (i = 0; i < HWM_HIST_SIZE; i++) {
+            dev_warn(&state->client->dev,
+                "%s: 0x%08x, last_opcode: 0x%08x, last_param1: 0x%08x, last_param2: 0x%08x\n",
+                hist_buff[i].write ? "Write" : "read", hist_buff[i].i2c_cmd,
+                hist_buff[i].last_opcode, hist_buff[i].last_param1, hist_buff[i].last_param2);
+        }
+    }
+    else
+    {
+        dev_err(&state->client->dev, "%s: Failed to read HWMC history buffer, ret: %d\n",
+                __func__, ret);
+    }
+    return ret;
+}
+
 static int ds5_get_hwmc_status(struct ds5 *state)
 {
 	int ret = 0;
@@ -1793,7 +1827,7 @@ static int ds5_get_hwmc_status(struct ds5 *state)
 			msleep_range(1);
 		ret = ds5_read(state, DS5_HWMC_STATUS, &status);
 	} while (!ret && retries-- && status == DS5_HWMC_STATUS_WIP);
-	dev_dbg(&state->client->dev,
+	dev_err(&state->client->dev,
 			"%s(): ret: 0x%x, status: 0x%x\n",
 			__func__, ret, status);
 	if (ret || status != DS5_HWMC_STATUS_OK) {
@@ -1817,12 +1851,15 @@ static int ds5_get_hwmc(struct ds5 *state, unsigned char *data,
 	if (!data)
 		return -ENOBUFS;
 
+	dev_err(&state->client->dev,"%s(): HWMC get CMD, data len: %d\n",
+			__func__, cmdDataLen);
 	memset(data, 0, cmdDataLen);
 	ret = ds5_get_hwmc_status(state);
 	if (ret) {
-		dev_dbg(&state->client->dev,
+		dev_err(&state->client->dev,
 			"%s(): HWMC status not clear, ret: %d\n",
 			__func__, ret);
+		ds5_print_hwmc_hist_buff(state);
 		if (ret != DS5_HWMC_ERR_LAST) {
 			int *p = (int *)data;
 			*p = ret;
@@ -1846,7 +1883,7 @@ static int ds5_get_hwmc(struct ds5 *state, unsigned char *data,
 		return -ENODATA;
 	}
 
-	dev_dbg(&state->client->dev,
+	dev_err(&state->client->dev,
 			"%s(): HWMC read len: %d, lrs_len: %d\n",
 			__func__, tmp_len, tmp_len - 4);
 
@@ -1860,7 +1897,7 @@ static int ds5_send_hwmc(struct ds5 *state,
 			u16 cmdLen,
 			struct hwm_cmd *cmd)
 {
-	dev_dbg(&state->client->dev,
+	dev_err(&state->client->dev,
 			"%s(): HWMC header: 0x%x, magic: 0x%x, opcode: 0x%x, "
 			"cmdLen: %d, param1: %d, param2: %d, param3: %d, param4: %d\n",
 			__func__, cmd->header, cmd->magic_word, cmd->opcode,
@@ -2291,6 +2328,7 @@ static int ds5_gvd(struct ds5 *state, unsigned char *data)
 	u16 status = 2;
 	u8 retries = 3;
 
+	dev_err(&state->client->dev, "%s(): GVD called\n", __func__);
 	memcpy(&cmd, &gvd, sizeof(gvd));
 	ds5_raw_write_with_check(state, DS5_HWMC_DATA, &cmd, sizeof(cmd)); /* Write command data */
 	ds5_write_with_check(state, DS5_HWMC_EXEC, 0x01); /* execute cmd */
